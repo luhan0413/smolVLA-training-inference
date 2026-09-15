@@ -1,1 +1,0 @@
-outputs/train/ur7e_20260911_053556_3425920/checkpoints/020000_64/**/*.safetensors filter=lfs diff=lfs merge=lfs -text
