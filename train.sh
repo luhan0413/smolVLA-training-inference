@@ -12,6 +12,7 @@ Environment options:
   GPU=2 BATCH_SIZE=8 STEPS=20000 NUM_WORKERS=4 SAVE_FREQ=5000
   JOB_NAME=smolvla_first_run OUTPUT_DIR=/absolute/new/output/path
   DATASET_ROOT=/absolute/dataset/path
+  POLICY_PATH=lerobot/smolvla_base  # or /absolute/checkpoint/pretrained_model
 
 Example smoke run after supplying your dataset:
   STEPS=2 BATCH_SIZE=1 bash train.sh HF_USER/DATASET
@@ -53,7 +54,7 @@ if [[ -e "$RUN_OUTPUT" ]]; then
 fi
 
 ARGS=(
-  "--policy.path=lerobot/smolvla_base"
+  "--policy.path=${POLICY_PATH:-lerobot/smolvla_base}"
   "--dataset.repo_id=$DATASET_REPO_ID"
   "--policy.device=cuda"
   "--policy.push_to_hub=false"
