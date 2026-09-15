@@ -9,7 +9,7 @@
 | 主機專案目錄 | `/home/itri464648/smolvla-training` |
 | Python 環境 | `.venv/bin/python`，現有環境為 Python 3.12、LeRobot 0.6.1 |
 | Server 程式 | `inference_service.py` |
-| Client 範例 | `inference_client.py` |
+| 呼叫範例 | 見第 6 節，可直接執行的 Python 範例 |
 | 本文件使用的 GPU | 實體 GPU 2，以 `CUDA_VISIBLE_DEVICES=2` 指定 |
 | 區網 IP | `192.168.50.159`，若主機網路變更需重新確認 |
 | Port | `8085` |
@@ -190,26 +190,44 @@ ssh -N -L 8085:127.0.0.1:8085 itri464648@192.168.50.159
 
 ## 6. 遠端使用者快速呼叫
 
-先依第 3.3 節確認 `/health`。將本專案的 `inference_client.py` 複製到 client 電腦；它只使用 Python 標準函式庫，不需要安裝 LeRobot 或 CUDA。
+先依第 3.3 節確認 `/health`。在呼叫端直接執行下列範例，只需 Python 標準函式庫，不需要安裝 LeRobot 或 CUDA。
+
+請將 `SERVER_URL`、圖片路徑、state 與 task 換成實際內容。
 
 ```bash
-python3 inference_client.py \
-  --url http://192.168.50.159:8085 \
-  --image /path/to/left.png \
-  --state -0.06 -0.29 0.49 1.26 1.19 -1.32 0.0 \
-  --task 'grasp the black handle on the target drawer and pull the drawer open.'
+python3 - <<'PYTHON'
+import base64
+import json
+from pathlib import Path
+from urllib.request import Request, build_opener, ProxyHandler
+
+SERVER_URL = "http://192.168.50.159:8085"
+IMAGE_PATH = "/path/to/left.png"
+payload = {
+    "state": [-0.06, -0.29, 0.49, 1.26, 1.19, -1.32, 0.0],
+    "task": "grasp the black handle on the target drawer and pull the drawer open.",
+    "image_base64": base64.b64encode(Path(IMAGE_PATH).read_bytes()).decode("ascii"),
+}
+request = Request(
+    SERVER_URL.rstrip("/") + "/infer",
+    data=json.dumps(payload).encode("utf-8"),
+    headers={"Content-Type": "application/json"},
+)
+with build_opener(ProxyHandler({})).open(request, timeout=120) as response:
+    print(json.dumps(json.load(response), indent=2))
+PYTHON
 ```
 
-請換成真實圖片路徑及與該影像同步的 TCP state；上方數值只是格式示例。圖片是 client 電腦上的檔案，client 會將內容編碼傳送，不是要求 server 讀取這個路徑。
+請使用真實圖片與該影像同步的 TCP state；上方數值只是格式示例。圖片是呼叫端電腦上的檔案，範例會將內容編碼傳送給 server。
 
-| Client 參數 | 說明 |
+| 範例設定／欄位 | 說明 |
 | --- | --- |
-| `--url` | Server 根網址，不要加 `/infer`；預設為 `http://127.0.0.1:8085` |
-| `--image` | 必填，640×480 PNG 或 JPEG |
-| `--state` | 必填，依序提供 7 個數值：x、y、z、rx、ry、rz、gripper |
-| `--task` | 必填，非空任務文字 |
+| `SERVER_URL` | Server 根網址，不要加 `/infer` |
+| `IMAGE_PATH` | 呼叫端的 640×480 PNG 或 JPEG 圖片路徑 |
+| `state` | 依序提供 7 個數值：x、y、z、rx、ry、rz、gripper |
+| `task` | 非空任務文字 |
 
-範例 client 每次執行只送一個請求，輸出 JSON，不會控制機器人；請求 timeout 為 120 秒，且程式會略過環境中的 HTTP proxy。
+範例每次執行只送一個請求，輸出 JSON，不會控制機器人；請求 timeout 為 120 秒，且會略過環境中的 HTTP proxy。
 
 ## 7. HTTP API 與動作解讀
 

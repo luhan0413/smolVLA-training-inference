@@ -11,7 +11,7 @@
 ```bash
 cd /path/to/smolvla-training
 source .venv/bin/activate
-CUDA_VISIBLE_DEVICES=2 python check_env.py
+CUDA_VISIBLE_DEVICES=2 python -c 'import torch; print(torch.__version__); assert torch.cuda.is_available(), "CUDA unavailable"; print(torch.cuda.get_device_name(0))'
 ```
 
 需要重建時（需已安裝 uv）：
@@ -120,4 +120,4 @@ train.sh 與 train_ur7e.sh 會自動先做全量檢查，失敗即停止。
 
 ## Inference service
 
-已提供 HTTP 推論服務與 Python client，啟動方式、API 格式及測試見 [INFERENCE.md](INFERENCE.md)。
+已提供 HTTP 推論服務，啟動方式、API 格式及 Python 呼叫範例見 [INFERENCE.md](INFERENCE.md)。
