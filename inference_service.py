@@ -14,7 +14,7 @@ import numpy as np
 import torch
 from PIL import Image, UnidentifiedImageError
 
-DEFAULT_CHECKPOINT = Path(__file__).resolve().parent / "outputs/train/ur7e_20260911_053556_3425920/checkpoints/020000_64/pretrained_model"
+DEFAULT_CHECKPOINT = Path(__file__).resolve().parent / "outputs/train/ur7e_20260921_021654_2627600/checkpoints/020000/pretrained_model"
 MAX_BODY = 8 * 1024 * 1024
 
 
@@ -42,7 +42,7 @@ def decode_request(payload):
         raise ValueError("invalid JPEG/PNG image_base64") from exc
     return {
         "observation.state": torch.tensor(state, dtype=torch.float32),
-        "observation.images.left": torch.from_numpy(rgb).permute(2, 0, 1).float() / 255,
+        "observation.images.arm": torch.from_numpy(rgb).permute(2, 0, 1).float() / 255,
         "task": task,
     }
 

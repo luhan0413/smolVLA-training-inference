@@ -12,6 +12,7 @@ Environment options:
   GPU=2 BATCH_SIZE=8 STEPS=20000 NUM_WORKERS=4 SAVE_FREQ=5000
   JOB_NAME=smolvla_first_run OUTPUT_DIR=/absolute/new/output/path
   DATASET_ROOT=/absolute/dataset/path
+  ACTION_KEY=action_tcp  # custom action source; legacy datasets default to action
   POLICY_PATH=lerobot/smolvla_base  # or /absolute/checkpoint/pretrained_model
 
 Example smoke run after supplying your dataset:
@@ -70,6 +71,26 @@ ARGS=(
 )
 if [[ -n "${DATASET_ROOT:-}" ]]; then
   ARGS+=("--dataset.root=$DATASET_ROOT")
+fi
+# Resolve the effective local root, including CLI overrides, before preflight.
+EFFECTIVE_ROOT="${DATASET_ROOT:-}"
+EXTRA_ARGS=("$@")
+for ((i=0; i<${#EXTRA_ARGS[@]}; i++)); do
+  if [[ "${EXTRA_ARGS[i]}" == --dataset.root=* ]]; then
+    EFFECTIVE_ROOT="${EXTRA_ARGS[i]#--dataset.root=}"
+  elif [[ "${EXTRA_ARGS[i]}" == --dataset.root && $((i+1)) -lt $# ]]; then
+    EFFECTIVE_ROOT="${EXTRA_ARGS[i+1]}"
+  fi
+done
+if [[ -n "$EFFECTIVE_ROOT" ]]; then
+  PREPARE_ARGS=("$EFFECTIVE_ROOT")
+  if [[ -n "${ACTION_KEY:-}" ]]; then
+    PREPARE_ARGS+=("--action-key=$ACTION_KEY")
+  fi
+  TRAINING_ROOT="$("$PROJECT_DIR/.venv/bin/python" "$PROJECT_DIR/prepare_smolvla_dataset.py" "${PREPARE_ARGS[@]}")"
+  echo "Training dataset: $TRAINING_ROOT"
+  # Append after user arguments so the prepared root is used by both commands.
+  set -- "$@" "--dataset.root=$TRAINING_ROOT"
 fi
 "$PROJECT_DIR/.venv/bin/python" "$PROJECT_DIR/check_dataset.py" \
   --report "$PROJECT_DIR/reports/${RUN_NAME}_preflight.json" \

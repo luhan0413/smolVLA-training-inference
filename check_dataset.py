@@ -8,6 +8,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from prepare_smolvla_dataset import select_action_key
+
 
 class InvalidDataset(ValueError):
     pass
@@ -58,7 +60,12 @@ def audit(root, repo_id, report, sample_video=False, options=None):
     features = info['features']
     cameras = [k for k, v in features.items() if v['dtype'] in ('video', 'image')]
     require(cameras, '缺少 RGB camera feature。')
-    for key in ('observation.state', 'action'):
+    action_key = select_action_key(features, options.get('action_key'))
+    report['action_source'] = action_key
+    view_marker = root / 'meta/training_view.json'
+    if view_marker.is_file():
+        report['training_view'] = json.loads(view_marker.read_text())
+    for key in ('observation.state', action_key):
         require(key in features, f'缺少 {key}')
         shape = features[key]['shape']
         require(len(shape) == 1 and 0 < shape[0] <= 32, f'{key}: 此工具支援 SmolVLA base 的 1–32 維向量。')
@@ -86,7 +93,7 @@ def audit(root, repo_id, report, sample_video=False, options=None):
     require(np.array_equal(episodes.episode_index, np.arange(len(episodes))), 'episode_index 必須連續且從 0 起算。')
     report['summary'] = dict(episodes=len(episodes), frames=len(frames), fps=fps,
                              state_dim=features['observation.state']['shape'][0],
-                             action_dim=features['action']['shape'][0], cameras=cameras,
+                             action_dim=features[action_key]['shape'][0], cameras=cameras,
                              robot_type=info.get('robot_type'), tasks=list(task_texts))
 
     for key in features:
@@ -97,7 +104,7 @@ def audit(root, repo_id, report, sample_video=False, options=None):
         expected = tuple(features[key]['shape'])
         actual = values.shape[1:] or (1,)
         require(actual == expected, f'{key}: shape {actual} != schema {expected}')
-        if key in ('observation.state', 'action'):
+        if key in ('observation.state', action_key):
             require(values.dtype == np.float32, f'{key}: 實際 dtype 不是 float32。')
             require(key in stats, f'{key}: 缺少 normalization 統計。')
             for name in ('mean', 'std', 'min', 'max'):
@@ -133,7 +140,8 @@ def audit(root, repo_id, report, sample_video=False, options=None):
     require(offset == len(frames), 'episode metadata 未涵蓋所有 frames。')
     report['checks'].append('所有 episode 邊界、索引、FPS 時間戳及引用檔案通過')
 
-    if options:
+    if any(k.startswith('policy.') for k in options):
+        require(action_key == 'action', 'SmolVLA 訓練需要單一 action；請使用 train.sh 自動產生訓練資料。')
         from lerobot.policies.smolvla.configuration_smolvla import SmolVLAConfig
         require(options.get('policy.type', 'smolvla') == 'smolvla', '此 preflight 僅支援 SmolVLA。')
         if 'policy.input_features' in options:
@@ -141,7 +149,7 @@ def audit(root, repo_id, report, sample_video=False, options=None):
         else:
             cfg = SmolVLAConfig.from_pretrained(options.get('policy.path', 'lerobot/smolvla_base'))
             expected = {k: {'shape': list(v.shape), 'type': v.type.value} for k,v in cfg.input_features.items()}
-        for key, option in [('observation.state', 'policy.max_state_dim'), ('action', 'policy.max_action_dim')]:
+        for key, option in [('observation.state', 'policy.max_state_dim'), (action_key, 'policy.max_action_dim')]:
             require(features[key]['shape'][0] <= int(options.get(option, 32)), f'{key}: 超過模型 padding 維度。')
         rename = json.loads(options.get('rename_map', '{}'))
         available = {rename.get(k,k): v for k,v in features.items()}
@@ -155,12 +163,12 @@ def audit(root, repo_id, report, sample_video=False, options=None):
     # Local dataset validation must not silently fetch or repair missing data.
     from huggingface_hub import constants as hub_constants
     hub_constants.HF_HUB_OFFLINE = True
-    ds = LeRobotDataset(repo_id, root=root, delta_timestamps={'action': [i/fps for i in range(chunk)]},
+    ds = LeRobotDataset(repo_id, root=root, delta_timestamps={action_key: [i/fps for i in range(chunk)]},
                         video_backend=options.get('dataset.video_backend', 'torchcodec'))
     indices = sorted(sampled) if sample_video else range(len(ds))
     for count, index in enumerate(indices, 1):
         item = ds[index]
-        require(tuple(item['action'].shape) == (chunk, features['action']['shape'][0]), 'action chunk 維度錯誤。')
+        require(tuple(item[action_key].shape) == (chunk, features[action_key]['shape'][0]), 'action chunk 維度錯誤。')
         require(isinstance(item['task'], str) and item['task'].strip(), 'loader 未提供有效 task。')
         for camera in cameras:
             img = item[camera]
@@ -184,6 +192,7 @@ def main():
     parser.add_argument('--repo-id', default='local/preflight')
     parser.add_argument('--report', default=str(Path(__file__).parent/'reports/dataset_check.json'))
     parser.add_argument('--sample-video', action='store_true')
+    parser.add_argument('--action-key', choices=['action', 'action_tcp', 'action_tcp_base', 'action_joints'])
     parser.add_argument('--training-args', nargs=argparse.REMAINDER)
     args = parser.parse_args()
     if not args.root and not args.training_args:
@@ -191,6 +200,8 @@ def main():
     report = dict(status='FAIL', checked_at=datetime.now(timezone.utc).isoformat(), checks=[], warnings=[], errors=[])
     try:
         options = train_options(args.training_args or [])
+        if args.action_key:
+            options['action_key'] = args.action_key
         root_arg = options.get('dataset.root', args.root)
         repo_id = options.get('dataset.repo_id', args.repo_id)
         if args.training_args and 'dataset.root' not in options:

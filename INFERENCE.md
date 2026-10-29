@@ -13,7 +13,7 @@
 | 本文件使用的 GPU | 實體 GPU 2，以 `CUDA_VISIBLE_DEVICES=2` 指定 |
 | 區網 IP | `192.168.50.159`，若主機網路變更需重新確認 |
 | Port | `8085` |
-| 預設 checkpoint | `outputs/train/ur7e_20260910_085801_3951068/checkpoints/020000/pretrained_model` |
+| 預設 checkpoint | `outputs/train/ur7e_20260921_021654_2627600/checkpoints/020000/pretrained_model` |
 | 健康檢查 | `GET /health` |
 | 推論 | `POST /infer` |
 
@@ -90,7 +90,7 @@ curl --noproxy '*' --fail --max-time 5 http://192.168.50.159:8085/health
 ```json
 {
   "status": "ready",
-  "checkpoint": "/home/itri464648/smolvla-training/outputs/train/ur7e_20260910_085801_3951068/checkpoints/020000/pretrained_model",
+  "checkpoint": "/home/itri464648/smolvla-training/outputs/train/ur7e_20260921_021654_2627600/checkpoints/020000/pretrained_model",
   "device": "cuda"
 }
 ```

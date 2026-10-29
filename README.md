@@ -32,7 +32,7 @@ uv pip install --python .venv/bin/python -r requirements.txt
 |---|---|---|
 | 用途 | 通用 SmolVLA 訓練入口 | UR7e 專用設定入口 |
 | 資料來源 | Hugging Face 資料集，或透過 `DATASET_ROOT` 指定本機資料 | 必須透過 `DATASET_ROOT` 指定本機資料，資料夾名稱不限 |
-| 輸入設定 | 未額外指定 UR7e 輸入格式 | 7 維 `observation.state`、`observation.images.left` RGB 影像，形狀為 `[3, 480, 640]` |
+| 輸入設定 | 未額外指定 UR7e 輸入格式 | 7 維 `observation.state`、`observation.images.arm` RGB 影像，形狀為 `[3, 480, 640]` |
 | 預設 batch size | 8 | 64 |
 | 預設 GPU | 2 | 2 |
 | 預設訓練步數 | 20,000 | 20,000 |

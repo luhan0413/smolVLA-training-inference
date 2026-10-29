@@ -4,3 +4,5 @@ datasets/
 outputs/
 logs/
 reports/
+raw_data_ur5_*/
+raw_data_ur7e_*/

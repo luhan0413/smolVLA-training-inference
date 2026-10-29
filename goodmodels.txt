@@ -1,0 +1,9 @@
+/home/itri464648/smolvla-training/outputs/train/ur5_tcp_good     ur5 開抽屜 120 組
+
+/home/itri464648/smolvla-training/outputs/train/ur5_ur7e_tcp_mix_shuffle   ur5和 ur7e 開抽屜 shffule 243組
+
+/home/itri464648/smolvla-training/outputs/train/ur7e_tcp_good      ur7e開抽屜 123組 
+
+/home/itri464648/smolvla-training/outputs/train/ur7e_close_drawer_45   ur7e 關抽屜 45組
+
+/home/itri464648/smolvla-training/outputs/train/ur7e_20261028_103410_277272/checkpoints/020000/pretrained_model ur7e open and close 242組

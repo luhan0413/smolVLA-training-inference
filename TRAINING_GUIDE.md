@@ -25,7 +25,7 @@ smolvla-training/
     ├── data/
     │   └── chunk-000/file-000.parquet
     └── videos/
-        └── observation.images.left/
+        └── observation.images.arm/
             └── chunk-000/
                 ├── file-000.mp4
                 └── ...
@@ -54,6 +54,12 @@ ls "$DATASET_ROOT/meta/info.json"
 ```
 
 如果找不到檔案，先確認是否多包了一層資料夾，或尚未解壓縮完成。
+
+新版 `UR7E_current` 有三種 action，SmolVLA 需要單一 `action` 欄位。`train.sh` 會自動產生獨立訓練資料 `UR7E_current_smolvla_action_tcp`，將 `action_tcp` 的資料與統計映射成 `action`；影片以硬連結共用，不重新編碼。原始資料不變。既有含 `action` 的資料集直接使用原路徑。
+
+預設使用局部工具座標增量；若要選其他控制方式，在啟動訓練前設定 `export ACTION_KEY=action_tcp_base` 或 `export ACTION_KEY=action_joints`。選擇的控制方式必須與部署一致。原始 `UR7E_current` 的 `observation.state` 是六關節角度與 gripper；訓練用資料會將 `observation.tcp_pose` 映射為 `observation.state`，使用 TCP x,y,z,rx,ry,rz＋gripper，與舊模型的輸入一致。若選 `action_joints`，則保留關節 state。
+
+直接檢查新版原資料可使用 `python check_dataset.py "$DATASET_ROOT"`，預設檢查 `action_tcp`；也可用 `--action-key action_tcp_base` 指定。實際訓練前會再對訓練資料執行全量檢查。
 
 ## 3. 先做資料檢查
 
@@ -108,9 +114,9 @@ python check_dataset.py "$DATASET_ROOT" \
 
 | 項目 | 目前資料及設定 |
 |---|---|
-| 影像 | `observation.images.left`，RGB 480×640 |
-| State | `observation.state`，7 維：TCP 位置、axis-angle 旋轉、gripper |
-| Action | 目前資料是 7 維：TCP 位置增量、旋轉增量、gripper |
+| 影像 | `observation.images.arm`，RGB 480×640 |
+| State | `observation.state`，7 維；舊版為 TCP 位姿＋gripper，新版 `UR7E_current` 原資料為關節角度；局部／base TCP 訓練資料映射為 TCP 位姿＋gripper |
+| Action | 預設學習 7 維局部 TCP 增量＋gripper；新版由 `action_tcp` 映射為 `action` |
 | Joints | `observation.joints` 不會自動加入模型的 state |
 | Action chunk | 預設 50 步；若資料為 10 Hz，即涵蓋 5 秒 |
 
@@ -171,7 +177,7 @@ mkdir -p logs
 RUN_ID="ur7e_$(date +%Y%m%d_%H%M%S)_$$"
 
 nohup env DATASET_ROOT="$DATASET_ROOT" \
-  GPU=2 BATCH_SIZE=32 STEPS=20000 SAVE_FREQ=5000 \
+  GPU=2 BATCH_SIZE=64 STEPS=20000 SAVE_FREQ=5000 \
   JOB_NAME="$RUN_ID" \
   bash train_ur7e.sh \
   > "logs/${RUN_ID}.log" 2>&1 < /dev/null &

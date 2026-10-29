@@ -1,0 +1,8 @@
+要用你目前的 TCP state＋局部 TCP action 訓練，只需：
+1. 將 observation.tcp_pose 映射為 observation.state。
+2. 將 action_tcp 映射為唯一的 action，訓練用資料不保留其他 action_* 欄位。
+3. 同步更新 info.json、stats.json 與各 episode 的 state／action 統計。
+訓練設定使用現有的 observation.images.arm 即可，影片不必改名或重新編碼。
+
+
+TCP state＋局部 TCP action 的訓練格式
